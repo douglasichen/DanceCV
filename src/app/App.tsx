@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { VideoCarousel } from "@/app/components/VideoCarousel";
 import { VideoPlayer } from "@/app/components/VideoPlayer";
 import { CameraFeed } from "@/app/components/CameraFeed";
@@ -69,6 +69,47 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const [videoUrl, setVideoUrl] = useState<string>(SAMPLE_VIDEO);
+  const [videoAngles, setVideoAngles] = useState<Record<number, number>>({});
+  const [comparisonResults, setComparisonResults] = useState<Record<number, number>>({});
+  
+  // A simple counter to track frames for the interval logic
+  const frameCounterRef = useRef(0);
+  const totalErrorRef = useRef(0);
+  const comparisonCountRef = useRef(0);
+
+  const handleCameraResults = (camAngles: Record<number, number>) => {
+    frameCounterRef.current++;
+
+    // Only compare every 5 frames (~4 times a second at 20-30fps)
+    if (frameCounterRef.current % 5 === 0) {
+      const diffs: Record<number, number> = {};
+      
+      Object.keys(camAngles).forEach((key) => {
+        const idx = parseInt(key);
+        if (videoAngles[idx] !== undefined) {
+          // Calculate the difference between the two sources
+          diffs[idx] = Math.abs(camAngles[idx] - videoAngles[idx]);
+          totalErrorRef.current += diffs[idx];
+          comparisonCountRef.current++;
+        }
+      });
+      
+      setComparisonResults(diffs);
+    }
+  };
+
+  const handleVideoEnd = () => {
+    if (comparisonCountRef.current > 0) {
+      const averageError = totalErrorRef.current / comparisonCountRef.current;
+      console.log(`Total Error: ${totalErrorRef.current.toFixed(2)}°`);
+      console.log(`Average Error per Joint: ${averageError.toFixed(2)}°`);
+      console.log(`Total Comparisons: ${comparisonCountRef.current}`);
+    }
+    // Reset counters for next video
+    totalErrorRef.current = 0;
+    comparisonCountRef.current = 0;
+    frameCounterRef.current = 0;
+  };
 
   useEffect(() => {
     const loadDefaultThumbnail = async () => {
@@ -160,6 +201,8 @@ export default function App() {
               playbackSpeed={playbackSpeed}
               onTogglePlay={handleTogglePlay}
               onSpeedChange={handleSpeedChange}
+              onAnglesUpdate={setVideoAngles}
+              onVideoEnd={handleVideoEnd}
               className="w-[450px] h-[800px] relative z-10"
             />
             {/* <div className="mt-4 px-4 py-2 bg-gradient-to-r from-cyan-500/20 to-pink-500/20 rounded-full border border-cyan-500/30">
@@ -170,7 +213,11 @@ export default function App() {
           {/* Camera Feed */}
           <div className="flex flex-col items-center relative z-10">
             <div className="absolute -inset-4 bg-gradient-to-r from-pink-500 to-cyan-500 rounded-2xl opacity-20 blur-xl" />
-            <CameraFeed className="w-[450px] h-[800px] relative z-10" />
+            <CameraFeed 
+            referenceAngles={videoAngles} 
+            comparisonResults={comparisonResults}
+            onCompare={handleCameraResults}
+            className="w-[450px] h-[800px] relative z-10" />
             {/* <div className="mt-4 px-4 py-2 bg-gradient-to-r from-pink-500/20 to-cyan-500/20 rounded-full border border-pink-500/30">
               <p className="text-pink-400 font-semibold text-sm">Your Practice</p>
             </div> */}

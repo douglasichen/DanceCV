@@ -7,9 +7,12 @@ import { calculateAngle } from "@/utils/pose";
 
 interface CameraFeedProps {
   className?: string;
+  referenceAngles?: Record<number, number>;
+  comparisonResults?: Record<number, number>;
+  onCompare?: (angles: Record<number, number>) => void;
 }
 
-export function CameraFeed({ className }: CameraFeedProps) {
+export function CameraFeed({ className, referenceAngles = {}, comparisonResults, onCompare }: CameraFeedProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isActive, setIsActive] = useState(false);
@@ -112,6 +115,10 @@ export function CameraFeed({ className }: CameraFeedProps) {
         angles[24] = calculateAngle(getCoords(12), getCoords(24), getCoords(26));
       }
 
+      if (onCompare) {
+        onCompare(angles);
+      }
+
       // Draw angles
       ctx.fillStyle = "white";
       ctx.font = "bold 16px Arial";
@@ -122,13 +129,31 @@ export function CameraFeed({ className }: CameraFeedProps) {
         const idx = parseInt(index);
         const pos = getCoords(idx);
         const text = Math.round(angle).toString();
+
+        let color = "white";
+        const diff = comparisonResults[idx]
+
+        if (diff !== undefined) {
+          if (diff < 10) {
+            color = "#00FF00"; // Green - good
+          } else if (diff < 20) {
+            color = "#FFFF00"; // Yellow - okay
+          } else {
+            color = "#FF0000"; // Red - needs improvement
+          }
+        }
+
+        ctx.fillStyle = color;
+        ctx.font = "bold 16px Arial";
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "black";
         
         ctx.strokeText(text, pos.x + 10, pos.y - 10);
         ctx.fillText(text, pos.x + 10, pos.y - 10);
       });
     }
     ctx.restore();
-  }, []);
+  }, [comparisonResults, onCompare]);
 
   useEffect(() => {
     const pose = new Pose({
