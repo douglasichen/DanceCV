@@ -21,6 +21,7 @@ export function CameraFeed({ className, referenceAngles = {}, comparisonResults,
   const showDebugRef = useRef(true); // Ref for access inside callback without dependency issues
   const cameraRef = useRef<Cam.Camera | null>(null);
   const poseRef = useRef<Pose | null>(null);
+  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Sync ref with state
   useEffect(() => {
@@ -30,30 +31,20 @@ export function CameraFeed({ className, referenceAngles = {}, comparisonResults,
   const onResults = useCallback((results: Results) => {
     const canvas = canvasRef.current;
     const video = videoRef.current;
-    if (!canvas || !video) return;
+    if (!canvas || !video || !results.poseLandmarks) return;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Match canvas size to video size
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
-    ctx.save();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Only draw if debug mode is enabled
+
     if (!showDebugRef.current) {
         ctx.restore();
         return;
     }
-
-    // Draw only the skeleton, video is already in the background element
-    // But we need to flip the context if we want the skeleton to match the mirrored video
-    // The video element is CSS mirrored with scale-x-[-1]
-    // So we should mirror the canvas drawing too
-    ctx.scale(-1, 1);
-    ctx.translate(-canvas.width, 0);
 
     if (results.poseLandmarks) {
       drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {
@@ -182,24 +173,41 @@ export function CameraFeed({ className, referenceAngles = {}, comparisonResults,
   const startCamera = async () => {
     try {
       if (videoRef.current && poseRef.current) {
+        // Initialize the offscreen canvas once
+        if (!offscreenCanvasRef.current) {
+          offscreenCanvasRef.current = document.createElement("canvas");
+        }
+        const offCanvas = offscreenCanvasRef.current;
+        const offCtx = offCanvas.getContext("2d");
+
         const camera = new Cam.Camera(videoRef.current, {
           onFrame: async () => {
-            if (videoRef.current && poseRef.current) {
-              await poseRef.current.send({ image: videoRef.current });
+            if (videoRef.current && poseRef.current && offCtx) {
+              // Set dimensions to match the source
+              offCanvas.width = videoRef.current.videoWidth;
+              offCanvas.height = videoRef.current.videoHeight;
+
+              // FLIP THE IMAGE HERE
+              offCtx.save();
+              offCtx.translate(offCanvas.width, 0);
+              offCtx.scale(-1, 1);
+              offCtx.drawImage(videoRef.current, 0, 0, offCanvas.width, offCanvas.height);
+              offCtx.restore();
+
+              // Send the flipped CANVAS instead of the VIDEO
+              await poseRef.current.send({ image: offCanvas });
             }
           },
           width: 1280,
           height: 720,
         });
-        
+
         cameraRef.current = camera;
         await camera.start();
         setIsActive(true);
-        setError(null);
       }
     } catch (err) {
       handleCameraError(err);
-      setIsActive(false);
     }
   };
 
