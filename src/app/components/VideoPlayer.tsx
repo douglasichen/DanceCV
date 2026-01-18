@@ -240,7 +240,8 @@ export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onToggle
   const handleRestart = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (videoRef.current) {
-      videoRef.current.currentTime = startTime;
+      videoRef.current.currentTime = startTime || 0;
+      videoRef.current.play().catch(e => console.error("Play error:", e));
     }
     if (!isPlaying) {
       onTogglePlay();

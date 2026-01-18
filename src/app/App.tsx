@@ -61,6 +61,8 @@ export default function App() {
     console.log("handle restart command");
     if (videoRef.current) {
       videoRef.current.currentTime = (chunks.find(c => c.id === selectedChunk)?.startTime || 0) / 1000;
+      // Force play to ensure video starts even if isPlaying state doesn't change
+      videoRef.current.play().catch(e => console.error("Play error:", e));
     }
 
     handleRestartVideo();
@@ -235,6 +237,7 @@ export default function App() {
   const legsTotalSquaredErrorRef = useRef(0);
   const legsComparisonCountRef = useRef(0);
 
+  const [comparisonResults, setComparisonResults] = useState<Record<number, number>>({});
   const comparisonResultsRef = useRef<Record<number, number>>({});
   const videoAnglesRef = useRef<Record<number, number>>({});
   
@@ -592,7 +595,7 @@ export default function App() {
             <div className="absolute -inset-4 bg-gradient-to-r from-pink-500 to-cyan-500 rounded-2xl opacity-20 blur-xl" />
             <CameraFeed 
             referenceAngles={videoAnglesRef.current} 
-            comparisonResults={comparisonResultsRef.current}
+            comparisonResults={comparisonResults}
             onCompare={handleCameraResults}
             className="w-[450px] h-[800px] relative z-10" />
             {/* <div className="mt-4 px-4 py-2 bg-gradient-to-r from-pink-500/20 to-cyan-500/20 rounded-full border border-pink-500/30">
