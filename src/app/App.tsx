@@ -2,10 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { VideoCarousel } from "@/app/components/VideoCarousel";
 import { VideoPlayer } from "@/app/components/VideoPlayer";
 import { CameraFeed } from "@/app/components/CameraFeed";
-import { Upload, Loader2 } from "lucide-react";
+import { Upload, Loader2, Mic, MicOff } from "lucide-react";
 import sampleVideo from "../../media/C_720_shorter.mp4";
 import { max } from "date-fns";
 import { getIntervals } from "../utils/gemini_chunk";
+import { GeminiCommandManager } from "../utils/gemini_commands";
 
 // Sample video URL - In production, this would change based on selected chunk
 const SAMPLE_VIDEO = sampleVideo;
@@ -35,6 +36,7 @@ const generateThumbnail = (videoUrl: string, time: number): Promise<string> => {
 };
 
 export default function App() {
+  const videoRef = useRef<HTMLVideoElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [chunks, setChunks] = useState<any[]>([]);
   const [selectedChunk, setSelectedChunk] = useState(1);
@@ -42,6 +44,65 @@ export default function App() {
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const [videoUrl, setVideoUrl] = useState<string>(SAMPLE_VIDEO);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isMicActive, setIsMicActive] = useState(false);
+  const geminiManagerRef = useRef<GeminiCommandManager | null>(null);
+
+  // Refs to hold current state/handlers for Gemini callbacks
+  const handlersRef = useRef({
+    restart: () => {},
+    next: () => {},
+  });
+
+  const handleRestartCommand = () => {
+    console.log("handle restart command");
+    if (videoRef.current) {
+      videoRef.current.currentTime = (chunks.find(c => c.id === selectedChunk)?.startTime || 0) / 1000;
+    }
+    if (!isPlaying) {
+      setIsPlaying(true);
+    }
+
+    handleRestartVideo();
+  };
+
+  const handleNextCommand = () => {
+    console.log("handle next command");
+    const currentIndex = chunks.findIndex(c => c.id === selectedChunk);
+    if (currentIndex !== -1 && currentIndex < chunks.length - 1) {
+      const nextChunk = chunks[currentIndex + 1];
+      handleSelectChunk(nextChunk.id);
+    }
+  };
+
+  // Update handlers ref on every render so Gemini always calls the latest version
+  useEffect(() => {
+    handlersRef.current = {
+      restart: handleRestartCommand,
+      next: handleNextCommand,
+    };
+  });
+
+  const toggleMic = async () => {
+    if (isMicActive) {
+      if (geminiManagerRef.current) {
+        await geminiManagerRef.current.disconnect();
+        setIsMicActive(false);
+      }
+    } else {
+      try {
+        if (!geminiManagerRef.current) {
+          geminiManagerRef.current = new GeminiCommandManager(
+            () => handlersRef.current.restart(),
+            () => handlersRef.current.next()
+          );
+        }
+        await geminiManagerRef.current.connect();
+        setIsMicActive(true);
+      } catch (error) {
+        console.error("Failed to connect to Gemini:", error);
+      }
+    }
+  };
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -403,6 +464,28 @@ export default function App() {
               className="hidden"
             />
           </label>
+
+          {/* Gemini Mic Button */}
+          <button
+            onClick={toggleMic}
+            className={`mb-6 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all duration-200 border ${
+              isMicActive
+                ? "bg-red-500/10 hover:bg-red-500/20 border-red-500/30 hover:border-red-500/50"
+                : "bg-gradient-to-r from-cyan-500/10 to-pink-500/10 hover:from-cyan-500/20 hover:to-pink-500/20 border-cyan-500/30 hover:border-cyan-500/50"
+            }`}
+          >
+            {isMicActive ? (
+              <>
+                <MicOff className="w-4 h-4 text-red-400" />
+                <span className="text-sm font-semibold text-red-400">End Session</span>
+              </>
+            ) : (
+              <>
+                <Mic className="w-4 h-4 text-cyan-400" />
+                <span className="text-sm font-semibold text-cyan-400">Gemini Live</span>
+              </>
+            )}
+          </button>
           
           {isAnalyzing ? (
             <div className="flex flex-col items-center justify-center flex-1 gap-4 text-cyan-400">
@@ -428,6 +511,7 @@ export default function App() {
           <div className="flex flex-col items-center relative z-10">
             <div className="absolute -inset-4 bg-gradient-to-r from-cyan-500 to-pink-500 rounded-2xl opacity-20 blur-xl" />
             <VideoPlayer
+              videoRef={videoRef}
               src={videoUrl}
               isPlaying={isPlaying}
               playbackSpeed={playbackSpeed}

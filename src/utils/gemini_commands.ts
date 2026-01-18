@@ -52,7 +52,7 @@ export class GeminiCommandManager {
       console.log("Gemini Config:", JSON.stringify(config, null, 2));
 
       this.session = await ai.live.connect({
-        model: 'models/gemini-2.5-flash-native-audio-preview-12-2025',
+        model: 'models/gemini-2.5-flash-native-audio-preview-09-2025',
         config,
         callbacks: {
           onopen: () => {
