@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { VideoCarousel } from "@/app/components/VideoCarousel";
 import { VideoPlayer } from "@/app/components/VideoPlayer";
 import { CameraFeed } from "@/app/components/CameraFeed";
@@ -34,6 +34,7 @@ const generateThumbnail = (videoUrl: string, time: number): Promise<string> => {
 };
 
 export default function App() {
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [chunks, setChunks] = useState<any[]>([]);
   const [selectedChunk, setSelectedChunk] = useState(1);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -48,10 +49,20 @@ export default function App() {
   };
 
   const processVideo = async (file: File, url: string) => {
+    // Cancel previous analysis
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    const signal = abortController.signal;
+
     setIsAnalyzing(true);
     setChunks([]); // Clear previous chunks
 
     try {
+      if (signal.aborted) return;
+
       // Get video duration
       const video = document.createElement("video");
       video.src = url;
@@ -61,7 +72,9 @@ export default function App() {
       const duration = video.duration;
 
       // Generate intervals using Gemini
-      const intervals = await getIntervals(file);
+      if (signal.aborted) return;
+      const intervals = await getIntervals(file, signal);
+      if (signal.aborted) return;
       console.log("Intervals: ", intervals);
       
       // Convert intervals to chunks with thumbnails
@@ -86,6 +99,8 @@ export default function App() {
         };
       }));
 
+      if (signal.aborted) return;
+
       // Create Full Song chunk
       let fullSongThumbnail = "";
       try {
@@ -104,6 +119,9 @@ export default function App() {
       };
 
       const allChunks = [fullSongChunk, ...newChunks];
+      
+      if (signal.aborted) return;
+      
       setChunks(allChunks);
       console.log("allChunks: ", allChunks);
       
@@ -113,10 +131,17 @@ export default function App() {
         setSelectedChunk(0);
       }
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        console.log("Video analysis aborted.");
+        return;
+      }
       console.error("Error analyzing video:", error);
       // alert("Failed to analyze video intervals. Please try again.");
     } finally {
-      setIsAnalyzing(false);
+      // Only turn off analyzing if this is still the active request
+      if (abortControllerRef.current === abortController) {
+        setIsAnalyzing(false);
+      }
     }
   };
 

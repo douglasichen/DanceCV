@@ -7,7 +7,11 @@ import {
 
 const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
 
-export async function getIntervals(fileInput: string | File) {
+export async function getIntervals(fileInput: string | File, signal?: AbortSignal) {
+  if (signal?.aborted) {
+    throw new DOMException("Aborted", "AbortError");
+  }
+
   let contentPart;
 
   if (typeof fileInput === "string") {
@@ -17,10 +21,17 @@ export async function getIntervals(fileInput: string | File) {
       config: { mimeType: "video/mp4" },
     });
 
+    if (signal?.aborted) {
+      throw new DOMException("Aborted", "AbortError");
+    }
+
     console.log(`Uploaded ${myfile.name}. Waiting for processing...`);
 
     // 2. POLL: Wait for the file to become ACTIVE
     while (myfile.state === "PROCESSING") {
+      if (signal?.aborted) {
+        throw new DOMException("Aborted", "AbortError");
+      }
       // Wait 10 seconds
       await new Promise((resolve) => setTimeout(resolve, 10_000));
       
@@ -40,6 +51,11 @@ export async function getIntervals(fileInput: string | File) {
     // Handle File object (Browser)
     console.log("Processing uploaded file...");
     const base64Data = await fileToGenerativePart(fileInput);
+    
+    if (signal?.aborted) {
+      throw new DOMException("Aborted", "AbortError");
+    }
+
     contentPart = {
       inlineData: {
         data: base64Data,
@@ -49,7 +65,7 @@ export async function getIntervals(fileInput: string | File) {
   }
 
   // 4. Generate Content
-  const response = await ai.models.generateContent({
+  const generatePromise = ai.models.generateContent({
     model: "gemini-3-pro-preview",
     contents: createUserContent([
       contentPart
@@ -87,6 +103,24 @@ export async function getIntervals(fileInput: string | File) {
       },
     }
   });
+
+  let response;
+  if (signal) {
+    const abortPromise = new Promise<never>((_, reject) => {
+        const onAbort = () => {
+            signal.removeEventListener("abort", onAbort);
+            reject(new DOMException("Aborted", "AbortError"));
+        };
+        if (signal.aborted) {
+            onAbort();
+        } else {
+            signal.addEventListener("abort", onAbort);
+        }
+    });
+    response = await Promise.race([generatePromise, abortPromise]);
+  } else {
+    response = await generatePromise;
+  }
   
   const resultText = response.text;
   const intervals = JSON.parse(resultText);
