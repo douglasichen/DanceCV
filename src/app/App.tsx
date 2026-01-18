@@ -39,7 +39,7 @@ export default function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [chunks, setChunks] = useState<any[]>([]);
-  const [selectedChunk, setSelectedChunk] = useState(1);
+  const [selectedChunk, setSelectedChunk] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const [videoUrl, setVideoUrl] = useState<string>(SAMPLE_VIDEO);
@@ -51,15 +51,13 @@ export default function App() {
   const handlersRef = useRef({
     restart: () => {},
     next: () => {},
+    start: () => {},
   });
 
   const handleRestartCommand = () => {
     console.log("handle restart command");
     if (videoRef.current) {
       videoRef.current.currentTime = (chunks.find(c => c.id === selectedChunk)?.startTime || 0) / 1000;
-    }
-    if (!isPlaying) {
-      setIsPlaying(true);
     }
 
     handleRestartVideo();
@@ -74,11 +72,17 @@ export default function App() {
     }
   };
 
+  const handleStartCommand = () => {
+    console.log("handle start command");
+    handleRestartCommand();
+  };
+
   // Update handlers ref on every render so Gemini always calls the latest version
   useEffect(() => {
     handlersRef.current = {
       restart: handleRestartCommand,
       next: handleNextCommand,
+      start: handleStartCommand,
     };
   });
 
@@ -93,7 +97,8 @@ export default function App() {
         if (!geminiManagerRef.current) {
           geminiManagerRef.current = new GeminiCommandManager(
             () => handlersRef.current.restart(),
-            () => handlersRef.current.next()
+            () => handlersRef.current.next(),
+            () => handlersRef.current.start()
           );
         }
         await geminiManagerRef.current.connect();
@@ -541,7 +546,7 @@ export default function App() {
                   </div>
 
                   <button
-                    onClick={handleRestartVideo}
+                    onClick={handleRestartCommand}
                     className="mt-4 px-8 py-3 bg-gradient-to-r from-cyan-400 to-cyan-600 hover:from-cyan-500 hover:to-cyan-700 rounded-full font-bold text-black transition-all duration-200 shadow-[0_0_20px_rgba(0,242,234,0.5)] hover:shadow-[0_0_30px_rgba(0,242,234,0.8)]"
                   >
                     Try Again

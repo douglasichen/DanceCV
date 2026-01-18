@@ -15,7 +15,8 @@ export class GeminiCommandManager {
 
   constructor(
     private onRestart: () => void,
-    private onNext: () => void
+    private onNext: () => void,
+    private onStart: () => void
   ) {}
 
   async connect() {
@@ -39,6 +40,10 @@ export class GeminiCommandManager {
             {
               name: 'next_section',
               description: 'call this function if the user wants to go to the next section',
+            },
+            {
+              name: 'start',
+              description: 'call this function if the user wants to start the song or section',
             }
           ],
         }
@@ -65,6 +70,7 @@ export class GeminiCommandManager {
           onclose: (event) => {
             console.log("Disconnected:", event);
             this.isConnected = false;
+            this.connect();
           },
           onerror: (error) => {
             console.error("Error:", error);
@@ -92,6 +98,9 @@ export class GeminiCommandManager {
         } else if (functionCall.name === 'next_section') {
             console.log('Next section');
             this.onNext();
+        } else if (functionCall.name === 'start') {
+            console.log('Starting section');
+            this.onStart();
         }
       }
     }
