@@ -233,7 +233,7 @@ export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onToggle
           ref={videoRef}
           src={src}
           className="w-full h-full object-cover"
-          loop
+          // loop
           playsInline
         />
         <canvas

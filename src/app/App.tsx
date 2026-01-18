@@ -4,6 +4,7 @@ import { VideoPlayer } from "@/app/components/VideoPlayer";
 import { CameraFeed } from "@/app/components/CameraFeed";
 import { Upload } from "lucide-react";
 import sampleVideo from "../../media/C_720_shorter.mp4";
+import { max } from "date-fns";
 
 // Mock video chunks data
 const INITIAL_CHUNKS = [
@@ -71,11 +72,15 @@ export default function App() {
   const [videoUrl, setVideoUrl] = useState<string>(SAMPLE_VIDEO);
   const [videoAngles, setVideoAngles] = useState<Record<number, number>>({});
   const [comparisonResults, setComparisonResults] = useState<Record<number, number>>({});
-  
+  const [showScoreScreen, setShowScoreScreen] = useState(false);
+  const [finalScore, setFinalScore] = useState(0);
+
   // A simple counter to track frames for the interval logic
   const frameCounterRef = useRef(0);
   const totalErrorRef = useRef(0);
   const comparisonCountRef = useRef(0);
+  const maxScore = useRef(0);
+  const currentScore = useRef(0);
 
   const handleCameraResults = (camAngles: Record<number, number>) => {
     frameCounterRef.current++;
@@ -91,6 +96,16 @@ export default function App() {
           diffs[idx] = Math.abs(camAngles[idx] - videoAngles[idx]);
           totalErrorRef.current += diffs[idx];
           comparisonCountRef.current++;
+
+          maxScore.current += 2; // Max 2 points per joint
+
+          if (diffs[idx] < 15) {
+            currentScore.current += 2;
+          } else if (diffs[idx] < 30) {
+            currentScore.current += 1;
+          } else {
+            currentScore.current += 0;
+          }
         }
       });
       
@@ -105,10 +120,26 @@ export default function App() {
       console.log(`Average Error per Joint: ${averageError.toFixed(2)}°`);
       console.log(`Total Comparisons: ${comparisonCountRef.current}`);
     }
+    // Calculate and store the final score as a percentage
+    const scorePercent = maxScore.current > 0 
+      ? (currentScore.current / maxScore.current) * 100 
+      : 0;
+    setFinalScore(scorePercent);
+
+    setShowScoreScreen(true);
+
     // Reset counters for next video
     totalErrorRef.current = 0;
     comparisonCountRef.current = 0;
     frameCounterRef.current = 0;
+
+    currentScore.current = 0;
+    maxScore.current = 0;
+  };
+
+  const handleRestartVideo = () => {
+    setShowScoreScreen(false);
+    setIsPlaying(true);
   };
 
   useEffect(() => {
@@ -205,6 +236,17 @@ export default function App() {
               onVideoEnd={handleVideoEnd}
               className="w-[450px] h-[800px] relative z-10"
             />
+            {showScoreScreen && (
+                <div className="absolute inset-0 bg-black/95 rounded-2xl flex flex-col items-center justify-center z-50">
+                  <h1 className="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 mb-8">Score: {finalScore.toFixed(1)}%</h1>
+                  <button
+                    onClick={handleRestartVideo}
+                    className="mt-8 px-8 py-3 bg-gradient-to-r from-cyan-400 to-cyan-600 hover:from-cyan-500 hover:to-cyan-700 rounded-full font-bold text-black transition-all duration-200 shadow-[0_0_20px_rgba(0,242,234,0.5)] hover:shadow-[0_0_30px_rgba(0,242,234,0.8)]"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              )}
             {/* <div className="mt-4 px-4 py-2 bg-gradient-to-r from-cyan-500/20 to-pink-500/20 rounded-full border border-cyan-500/30">
               <p className="text-cyan-400 font-semibold text-sm">Tutorial</p>
             </div> */}

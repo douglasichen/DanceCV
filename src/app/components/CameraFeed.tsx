@@ -125,9 +125,9 @@ export function CameraFeed({ className, referenceAngles = {}, comparisonResults,
         const diff = comparisonResults[idx]
 
         if (diff !== undefined) {
-          if (diff < 10) {
+          if (diff < 15) {
             color = "#00FF00"; // Green - good
-          } else if (diff < 20) {
+          } else if (diff < 30) {
             color = "#FFFF00"; // Yellow - okay
           } else {
             color = "#FF0000"; // Red - needs improvement
