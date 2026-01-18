@@ -51,21 +51,8 @@ export function CameraFeed({ className, comparisonResults, onCompare }: CameraFe
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    if (!showDebugRef.current) {
-        ctx.restore();
-        return;
-    }
-
+    
     if (results.poseLandmarks) {
-      drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {
-        color: "#00FF00",
-        lineWidth: 4,
-      });
-      drawLandmarks(ctx, results.poseLandmarks, {
-        color: "#FF0000",
-        lineWidth: 2,
-      });
-
       // Calculate and draw angles
       const landmarks = results.poseLandmarks;
       
@@ -120,38 +107,49 @@ export function CameraFeed({ className, comparisonResults, onCompare }: CameraFe
         onCompare(angles);
       }
 
-      // Draw angles
-      ctx.fillStyle = "white";
-      ctx.font = "bold 16px Arial";
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "black";
+      if (showDebugRef.current) {
+        drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {
+          color: "#00FF00",
+          lineWidth: 4,
+        });
+        drawLandmarks(ctx, results.poseLandmarks, {
+          color: "#FF0000",
+          lineWidth: 2,
+        });
 
-      Object.entries(angles).forEach(([index, angle]) => {
-        const idx = parseInt(index);
-        const pos = getCoords(idx);
-        const text = Math.round(angle).toString();
-
-        let color = "white";
-        const diff = comparisonResults[idx]
-
-        if (diff !== undefined) {
-          if (diff < 15) {
-            color = "#00FF00"; // Green - good
-          } else if (diff < 30) {
-            color = "#FFFF00"; // Yellow - okay
-          } else {
-            color = "#FF0000"; // Red - needs improvement
-          }
-        }
-
-        ctx.fillStyle = color;
+        // Draw angles
+        ctx.fillStyle = "white";
         ctx.font = "bold 16px Arial";
         ctx.lineWidth = 2;
         ctx.strokeStyle = "black";
-        
-        ctx.strokeText(text, pos.x + 10, pos.y - 10);
-        ctx.fillText(text, pos.x + 10, pos.y - 10);
-      });
+
+        Object.entries(angles).forEach(([index, angle]) => {
+          const idx = parseInt(index);
+          const pos = getCoords(idx);
+          const text = Math.round(angle).toString();
+
+          let color = "white";
+          const diff = comparisonResults[idx]
+
+          if (diff !== undefined) {
+            if (diff < 15) {
+              color = "#00FF00"; // Green - good
+            } else if (diff < 30) {
+              color = "#FFFF00"; // Yellow - okay
+            } else {
+              color = "#FF0000"; // Red - needs improvement
+            }
+          }
+
+          ctx.fillStyle = color;
+          ctx.font = "bold 16px Arial";
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = "black";
+          
+          ctx.strokeText(text, pos.x + 10, pos.y - 10);
+          ctx.fillText(text, pos.x + 10, pos.y - 10);
+        });
+      }
     }
     ctx.restore();
   }, []);
