@@ -76,66 +76,120 @@ export default function App() {
   // A simple counter to track frames for the interval logic
   const frameCounterRef = useRef(0);
   const totalErrorRef = useRef(0);
+  const totalSquaredErrorRef = useRef(0);
   const comparisonCountRef = useRef(0);
   const comparisonResultsRef = useRef<Record<number, number>>({});
   const videoAnglesRef = useRef<Record<number, number>>({});
-  const maxScoreRef = useRef(0);
-  const currentScoreRef = useRef(0);
+  
+  // Buffer to store recent video frames for latency compensation
+  // Stores up to 30 frames (~1 second at 30fps)
+  const videoHistoryRef = useRef<Array<Record<number, number>>>([]);
+
+  const handleVideoAnglesUpdate = (angles: Record<number, number>) => {
+    // Update the current reference for display purposes
+    videoAnglesRef.current = angles;
+    
+    // Add to history buffer
+    videoHistoryRef.current.push(angles);
+    
+    // Keep buffer size limited (e.g., last 30 frames)
+    if (videoHistoryRef.current.length > 10) {
+      videoHistoryRef.current.shift();
+    }
+  };
 
   const handleCameraResults = (camAngles: Record<number, number>) => {
     frameCounterRef.current++;
 
-    // Only compare every 5 frames (~4 times a second at 20-30fps)
-    if (frameCounterRef.current % 1 === 0) {
-      const diffs: Record<number, number> = {};
+    // Only compare every 10 frames (~3 times a second at 30fps)
+    if (frameCounterRef.current % 10 === 0) {
+      
+      // Find the best matching frame in our history buffer
+      let bestFrameError = Infinity;
+      let bestFrameDiffs: Record<number, number> = {};
+      
+      // If history is empty, fallback to current (though it shouldn't be if video is playing)
+      const framesToCompare = videoHistoryRef.current.length > 0 
+        ? videoHistoryRef.current 
+        : [videoAnglesRef.current];
 
-      Object.keys(camAngles).forEach((key) => {
-        const idx = parseInt(key);
-        if (videoAnglesRef.current[idx] !== undefined) {
-          // Calculate the difference between the two sources
-          diffs[idx] = Math.abs(camAngles[idx] - videoAnglesRef.current[idx]);
-          totalErrorRef.current += diffs[idx];
-          comparisonCountRef.current++;
+      framesToCompare.forEach((videoAngles) => {
+        let currentFrameError = 0;
+        let currentFrameDiffs: Record<number, number> = {};
+        let jointCount = 0;
 
-          maxScoreRef.current += 2; // Max 2 points per joint
+        // Calculate error for this specific video frame
+        Object.keys(videoAngles).forEach((key) => {
+          const idx = parseInt(key);
+          let diff = 90; // Default large penalty
 
-          if (diffs[idx] < 15) {
-            currentScoreRef.current += 2;
-          } else if (diffs[idx] < 30) {
-            currentScoreRef.current += 1;
-          } else {
-            currentScoreRef.current += 0;
+          if (camAngles[idx] !== undefined) {
+             diff = Math.abs(camAngles[idx] - videoAngles[idx]);
           }
+          
+          currentFrameDiffs[idx] = diff;
+          // Use squared error for finding best match to penalize outliers heavily
+          currentFrameError += diff * diff;
+          jointCount++;
+        });
+
+        // Normalize error by joint count to treat frames equally
+        if (jointCount > 0) {
+            currentFrameError = currentFrameError / jointCount;
+        }
+
+        // If this frame is a better match than previous ones, keep it
+        if (currentFrameError < bestFrameError) {
+            bestFrameError = currentFrameError;
+            bestFrameDiffs = currentFrameDiffs;
         }
       });
-      comparisonResultsRef.current = diffs;
+
+      // Now accumulate the stats from the BEST matching frame
+      Object.entries(bestFrameDiffs).forEach(([key, diff]) => {
+          totalErrorRef.current += diff;
+          totalSquaredErrorRef.current += diff * diff;
+          comparisonCountRef.current++;
+      });
+      
+      comparisonResultsRef.current = bestFrameDiffs;
     }
   };
 
   const handleVideoEnd = () => {
+    let scorePercent = 0;
+
     if (comparisonCountRef.current > 0) {
       const averageError = totalErrorRef.current / comparisonCountRef.current;
+      const rmsError = Math.sqrt(totalSquaredErrorRef.current / comparisonCountRef.current);
+      
       console.log(`Total Error: ${totalErrorRef.current.toFixed(2)}°`);
       console.log(`Average Error per Joint: ${averageError.toFixed(2)}°`);
+      console.log(`RMS Error: ${rmsError.toFixed(2)}°`);
       console.log(`Total Comparisons: ${comparisonCountRef.current}`);
+
+      // Calculate score using a cubic curve to separate good/bad performances
+      // RMS Error of 0  => 100%
+      // RMS Error of 26 => ~80% (Trying)
+      // RMS Error of 34 => ~57% (Standing still)
+      // RMS Error of 45+ => 0%
+      const maxTolerableError = 45;
+      scorePercent = Math.max(0, 100 * (1 - Math.pow(rmsError / maxTolerableError, 3)));
     }
-    // Calculate and store the final score as a percentage
-    const scorePercent = maxScoreRef.current > 0 
-      ? (currentScoreRef.current / maxScoreRef.current) * 100 
-      : 0;
+
     setFinalScore(scorePercent);
 
     setShowScoreScreen(true);
 
     // Reset counters for next video
     totalErrorRef.current = 0;
+    totalSquaredErrorRef.current = 0;
     comparisonCountRef.current = 0;
     frameCounterRef.current = 0;
-    currentScoreRef.current = 0;
-    maxScoreRef.current = 0;
 
     comparisonResultsRef.current = {};
     videoAnglesRef.current = {};
+    videoHistoryRef.current = [];
   };
 
   const handleRestartVideo = () => {
@@ -144,12 +198,12 @@ export default function App() {
 
     frameCounterRef.current = 0;
     totalErrorRef.current = 0;
+    totalSquaredErrorRef.current = 0;
     comparisonCountRef.current = 0;
-    maxScoreRef.current = 0;
-    currentScoreRef.current = 0;
 
     comparisonResultsRef.current = {};
     videoAnglesRef.current = {};
+    videoHistoryRef.current = [];
   };
 
   useEffect(() => {
@@ -242,7 +296,7 @@ export default function App() {
               playbackSpeed={playbackSpeed}
               onTogglePlay={handleTogglePlay}
               onSpeedChange={handleSpeedChange}
-              onAnglesUpdate={videoAnglesRef}
+              onAnglesUpdate={handleVideoAnglesUpdate}
               onVideoEnd={handleVideoEnd}
               onRestart={handleRestartVideo}
               className="w-[450px] h-[800px] relative z-10"
