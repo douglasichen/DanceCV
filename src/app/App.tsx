@@ -6,6 +6,7 @@ import { Upload, Loader2 } from "lucide-react";
 import sampleVideo from "../../media/C_720_shorter.mp4";
 import { max } from "date-fns";
 import { getIntervals } from "../utils/gemini";
+import { getRandomArmTip, getRandomLegTip } from "./components/tips";
 
 // Sample video URL - In production, this would change based on selected chunk
 const SAMPLE_VIDEO = sampleVideo;
@@ -149,6 +150,8 @@ export default function App() {
   const [finalScore, setFinalScore] = useState(0);
   const [armsScore, setArmsScore] = useState(0);
   const [legsScore, setLegsScore] = useState(0);
+  const [armsTip, setArmsTip] = useState("");
+  const [legsTip, setLegsTip] = useState("");
   
   // A simple counter to track frames for the interval logic
   const frameCounterRef = useRef(0);
@@ -293,6 +296,9 @@ export default function App() {
     setFinalScore(scorePercent);
     setArmsScore(armsScorePercent);
     setLegsScore(legsScorePercent);
+
+    setArmsTip(getRandomArmTip(armsScorePercent));
+    setLegsTip(getRandomLegTip(legsScorePercent));
 
     setShowScoreScreen(true);
 
@@ -453,6 +459,21 @@ export default function App() {
                     <div className="flex flex-col items-center">
                       <span className="text-2xl font-bold text-pink-500">{legsScore.toFixed(1)}%</span>
                       <span className="text-gray-400 text-sm uppercase tracking-wider">Legs</span>
+                    </div>
+                  </div>
+
+                  {/* Tips Section */}
+                  <div className="w-full max-w-md mb-12 space-y-6 px-6">
+                    {/* Arms Tip */}
+                    <div className="flex gap-3 p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-lg">
+                      <span className="text-cyan-400 font-bold text-lg flex-shrink-0">💪</span>
+                      <p className="text-cyan-300 text-sm leading-relaxed">{armsTip}</p>
+                    </div>
+
+                    {/* Legs Tip */}
+                    <div className="flex gap-3 p-4 bg-pink-500/10 border border-pink-500/30 rounded-lg">
+                      <span className="text-pink-400 font-bold text-lg flex-shrink-0">🦵</span>
+                      <p className="text-pink-300 text-sm leading-relaxed">{legsTip}</p>
                     </div>
                   </div>
 
