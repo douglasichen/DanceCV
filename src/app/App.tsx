@@ -402,7 +402,7 @@ export default function App() {
       <div className="flex-1 flex overflow-hidden">
         {/* Video Carousel Sidebar */}
         <div className="w-64 flex flex-col bg-gradient-to-b from-gray-950 via-gray-900 to-black border-r border-cyan-500/20 p-6 shadow-[4px_0_20px_rgba(0,242,234,0.1)] relative">
-          <h2 className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 font-bold text-lg mb-4 tracking-wide">Dance Sections</h2>
+          <h2 className="bungee-inline text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 font-bold text-4xl mb-4 tracking-wide">Dance CV</h2>
           
           {/* Upload Video Button */}
           <label className="mb-6 block cursor-pointer group">
@@ -456,7 +456,7 @@ export default function App() {
             />
             {showScoreScreen && (
                 <div className="absolute inset-0 bg-black/95 rounded-2xl flex flex-col items-center justify-center z-50">
-                  <h1 className="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 mb-8">Score: {finalScore.toFixed(1)}%</h1>
+                  <h1 className="bungee-inline text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 mb-8">Score: {finalScore.toFixed(1)}%</h1>
                   
                   <div className="flex gap-8 mb-8">
                     <div className="flex flex-col items-center">
