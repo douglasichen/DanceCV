@@ -86,7 +86,7 @@ export default function App() {
     frameCounterRef.current++;
 
     // Only compare every 5 frames (~4 times a second at 20-30fps)
-    if (frameCounterRef.current % 5 === 0) {
+    if (frameCounterRef.current % 1 === 0) {
       const diffs: Record<number, number> = {};
       
       Object.keys(camAngles).forEach((key) => {
@@ -132,14 +132,25 @@ export default function App() {
     totalErrorRef.current = 0;
     comparisonCountRef.current = 0;
     frameCounterRef.current = 0;
-
     currentScore.current = 0;
     maxScore.current = 0;
+
+    setComparisonResults({});
+    setVideoAngles({});
   };
 
   const handleRestartVideo = () => {
     setShowScoreScreen(false);
     setIsPlaying(true);
+
+    frameCounterRef.current = 0;
+    totalErrorRef.current = 0;
+    comparisonCountRef.current = 0;
+    maxScore.current = 0;
+    currentScore.current = 0;
+
+    setComparisonResults({});
+    setVideoAngles({});
   };
 
   useEffect(() => {
@@ -234,6 +245,7 @@ export default function App() {
               onSpeedChange={handleSpeedChange}
               onAnglesUpdate={setVideoAngles}
               onVideoEnd={handleVideoEnd}
+              onRestart={handleRestartVideo}
               className="w-[450px] h-[800px] relative z-10"
             />
             {showScoreScreen && (

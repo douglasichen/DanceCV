@@ -13,9 +13,10 @@ interface VideoPlayerProps {
   onSpeedChange: (speed: number) => void;
   onAnglesUpdate?: (angles: Record<number, number>) => void;
   onVideoEnd?: () => void;
+  onRestart?: () => void;
 }
 
-export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onTogglePlay, onSpeedChange, onAnglesUpdate, onVideoEnd }: VideoPlayerProps) {
+export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onTogglePlay, onSpeedChange, onAnglesUpdate, onVideoEnd, onRestart }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const poseRef = useRef<Pose | null>(null);
@@ -224,6 +225,8 @@ export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onToggle
     if (!isPlaying) {
       onTogglePlay();
     }
+
+    onRestart?.();
   };
 
   return (
