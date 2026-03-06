@@ -2,6 +2,10 @@
 
 DanceCV is an interactive and hands-free dance education platform that leverages AI and computer vision to help users learn dance routines efficiently. By comparing your movements to a tutorial video in real-time, the application provides instant feedback, scoring, and personalized tips.
 
+## Demo Video
+
+[![Watch the DanceCV demo](https://img.youtube.com/vi/AWBrBWU1IzA/maxresdefault.jpg)](https://www.youtube.com/watch?v=AWBrBWU1IzA)
+
 ## Features
 
 - **Real-time Pose Comparison**: Uses your webcam to capture your movements and compares your pose (skeleton) with the instructor's in the video using MediaPipe Pose.
